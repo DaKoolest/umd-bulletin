@@ -44,11 +44,21 @@ export default function App() {
                         />
                     ))}
                 </Tabs>
-                <SignedOut>
-                    <SignInButton>
-                        <Button>Log In</Button>
-                    </SignInButton>
-                </SignedOut>
+                <Box
+                    sx={{
+                        marginLeft: "auto",
+                        alignSelf: "center",
+                    }}
+                >
+                    <SignedOut>
+                        <SignInButton>
+                            <Button sx={{ height: 64, padding: 3 }}>
+                                Log In
+                            </Button>
+                        </SignInButton>
+                    </SignedOut>
+                </Box>
+
                 <SignedIn>
                     <Box
                         sx={{
