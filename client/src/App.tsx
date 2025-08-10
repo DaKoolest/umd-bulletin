@@ -8,11 +8,13 @@ import { Box, Button, Tab, Tabs } from "@mui/material";
 import { Outlet, useLocation, useNavigate } from "react-router";
 import { tabRoutes } from "./router/router";
 import "./App.css";
+import { useAutoClearUserCache } from "./hooks/UserCacheSync";
+import LogoutButton from "./components/LogoutButton";
 
 export default function App() {
     const location = useLocation();
     const navigate = useNavigate();
-
+    useAutoClearUserCache();
     const currentTabIndex = tabRoutes.findIndex((route) =>
         location.pathname.startsWith(route.path)
     );
@@ -68,7 +70,8 @@ export default function App() {
                             height: 28,
                         }}
                     >
-                        <UserButton />
+                        <LogoutButton></LogoutButton>
+                        {/* <UserButton /> */}
                     </Box>
                 </SignedIn>
             </Box>

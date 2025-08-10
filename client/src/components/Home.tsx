@@ -1,37 +1,16 @@
 import { Map, Marker, type MapLayerMouseEvent } from "@vis.gl/react-maplibre";
-import { LngLat } from "maplibre-gl";
-
 import { Box, Button, Fab, Snackbar } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useState, useEffect, useCallback } from "react";
 import PostModal, { type Post, type PostModalProps } from "./PostModal";
 import { useBulletinApi } from "../bulletin-api";
-import { useQuery } from "@tanstack/react-query";
-
-// const posts: Post[] = [
-//     {
-//         title: "Post Title",
-//         author: "Joe Mama",
-//         body: "I love kassidy kepner <3",
-//         likes: 5,
-//         pos: new LngLat(-76.94631338333387, 38.986766592572366),
-//         hasUserLiked: true,
-//     },
-//     {
-//         title: "Burgers",
-//         author: "x3",
-//         body: "smelly farts",
-//         likes: 5,
-//         pos: new LngLat(-76.94263265416787, 38.989642511933965),
-//         hasUserLiked: true,
-//     },
-// ];
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { SignedIn, SignIn, useAuth } from "@clerk/clerk-react";
 
 function Home() {
-    //const [markers, setMarkers] = useState<LngLat[]>([]);
     const { get } = useBulletinApi();
-    //const [posts, getPosts] = useState<Post[]>();
+    const { userId } = useAuth();
     const [placingMarker, setPlacingMarker] = useState<boolean>(false);
     const [postModalProps, setPostModalProps] = useState<PostModalProps>({
         open: false,
@@ -44,12 +23,14 @@ function Home() {
     };
 
     const { data } = useQuery({
-        queryKey: ["user"],
+        queryKey: ["personal_posts"],
         queryFn: async () => {
             const res = await get("/get-personal-posts");
-            return res.data?.posts;
+            return res.data?.posts ?? [];
         },
         retry: false,
+        enabled: !!userId,
+        initialData: [],
     });
 
     const handleMapClick = useCallback(
@@ -62,8 +43,6 @@ function Home() {
                     mode: "create",
                     pos: e.lngLat,
                 });
-
-                //setMarkers((prev) => [...prev, e.lngLat]);
             }
         },
         [placingMarker]
@@ -128,29 +107,32 @@ function Home() {
                     />
                 ))}
             </Map>
-            <Fab
-                sx={{ position: "absolute", right: 16, top: 16 }}
-                color="primary"
-                aria-label="add"
-                onClick={() => setPlacingMarker(true)}
-            >
-                <AddIcon />
-            </Fab>
-            <Snackbar
-                open={placingMarker}
-                message="Click on the map to place your pin"
-                anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-                action={
-                    <Button
-                        color="primary"
-                        size="small"
-                        onClick={() => setPlacingMarker(false)}
-                    >
-                        Cancel
-                    </Button>
-                }
-            />
-            <PostModal {...postModalProps} />
+
+            <SignedIn>
+                <Fab
+                    sx={{ position: "absolute", right: 16, top: 16 }}
+                    color="primary"
+                    aria-label="add"
+                    onClick={() => setPlacingMarker(true)}
+                >
+                    <AddIcon />
+                </Fab>
+                <Snackbar
+                    open={placingMarker}
+                    message="Click on the map to place your pin"
+                    anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+                    action={
+                        <Button
+                            color="primary"
+                            size="small"
+                            onClick={() => setPlacingMarker(false)}
+                        >
+                            Cancel
+                        </Button>
+                    }
+                />
+                <PostModal {...postModalProps} />
+            </SignedIn>
         </Box>
     );
 }

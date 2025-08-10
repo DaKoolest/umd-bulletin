@@ -37,6 +37,8 @@ app.get("/get-personal-posts", requireAuth(), async (req, res) => {
                 pos: p.location,
                 hasUserLiked: false,
                 createdAt: p.createdAt,
+                canDelete: true,
+                postId: p._id,
             })),
         });
     } catch (error) {
@@ -55,7 +57,7 @@ app.post("/create-post", requireAuth(), async (req, res) => {
         const authorId = user?._id;
 
         if (!(title || body || location || authorId)) {
-            res.status(500).json({ message: "Server error" });
+            return res.status(500).json({ message: "Server error" });
         }
 
         const post = new Post({
@@ -66,7 +68,49 @@ app.post("/create-post", requireAuth(), async (req, res) => {
         });
 
         const savedPost = await post.save();
-        res.status(201).json({ message: "Added sucessfully" });
+        res.status(201).json({
+            author: user?.username,
+            title: savedPost.title,
+            body: savedPost.body,
+            likes: savedPost.likes.length,
+            pos: savedPost.location,
+            hasUserLiked: false,
+            createdAt: savedPost.createdAt,
+            canDelete: true,
+            postId: savedPost._id,
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
+app.post("/delete-post", requireAuth(), async (req, res) => {
+    const { userId } = getAuth(req);
+    const { postId } = req.body;
+
+    try {
+        const user = await User.findOne({ clerkId: userId });
+        const authorId = user?._id;
+
+        if (!postId) {
+            return res.status(500).json({ message: "No postId provided" });
+        }
+
+        const deletedPost = await Post.findOneAndDelete({
+            _id: postId,
+            authorId: authorId,
+        });
+
+        if (deletedPost) {
+            return res
+                .status(200)
+                .json({ message: "Post deleted successfully" });
+        } else {
+            return res
+                .status(403)
+                .json({ message: "Not authorized or post not found" });
+        }
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Server error" });

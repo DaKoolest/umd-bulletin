@@ -13,6 +13,7 @@ import type { LngLat } from "@vis.gl/react-maplibre";
 import ThumbUpIcon from "@mui/icons-material/ThumbUp";
 import { useState } from "react";
 import { useBulletinApi } from "../bulletin-api";
+import { useQueryClient } from "@tanstack/react-query";
 
 export type Post = {
     author?: string;
@@ -21,6 +22,8 @@ export type Post = {
     likes: number;
     pos: LngLat;
     hasUserLiked: boolean;
+    canDelete: boolean;
+    postId: number;
     createdAt: Date;
 };
 
@@ -34,6 +37,7 @@ export type PostModalProps = {
 
 function PostModal({ open, mode, pos, userPost, handleClose }: PostModalProps) {
     const { post } = useBulletinApi();
+    const queryClient = useQueryClient();
 
     const [title, setTitle] = useState("");
     const [body, setBody] = useState("");
@@ -47,6 +51,17 @@ function PostModal({ open, mode, pos, userPost, handleClose }: PostModalProps) {
             console.log("Submitted:", { title, body, pos });
 
             post("/create-post", { title: title, body: body, location: pos })
+                .then((res) => {
+                    const personalPosts: Post[] | undefined =
+                        queryClient.getQueryData(["personal_posts"]);
+
+                    queryClient.setQueryData(
+                        ["personal_posts"],
+                        personalPosts
+                            ? [...personalPosts, res.data]
+                            : [res.data]
+                    );
+                })
                 .catch((e: Error) => console.error(e))
                 .finally(handleClose);
         }
@@ -165,6 +180,41 @@ function PostModal({ open, mode, pos, userPost, handleClose }: PostModalProps) {
                                 </IconButton>
                                 <Typography>{userPost?.likes}</Typography>
                             </Box>
+
+                            {userPost?.canDelete && (
+                                <Button
+                                    onClick={() => {
+                                        post("delete-post", {
+                                            postId: userPost?.postId,
+                                        })
+                                            .then(() => {
+                                                const personalPosts:
+                                                    | Post[]
+                                                    | undefined =
+                                                    queryClient.getQueryData([
+                                                        "personal_posts",
+                                                    ]);
+
+                                                queryClient.setQueryData(
+                                                    ["personal_posts"],
+                                                    personalPosts
+                                                        ? personalPosts.filter(
+                                                              (post) =>
+                                                                  post !==
+                                                                  userPost
+                                                          )
+                                                        : []
+                                                );
+                                                handleClose();
+                                            })
+                                            .catch((e: Error) =>
+                                                console.error(e)
+                                            );
+                                    }}
+                                >
+                                    Delete Post
+                                </Button>
+                            )}
                         </Box>
                     )}
                 </Card>
