@@ -8,10 +8,12 @@ const postSchema = new mongoose.Schema({
     },
     title: { type: String, required: true, maxlength: 25 },
     body: { type: String, required: true, maxlength: 100 },
-    likes: [{ type: mongoose.Schema.Types.ObjectId, ref: "authorId" }],
     location: {
         lat: { type: Number, required: true },
         lng: { type: Number, required: true },
+    },
+    imageName: {
+        type: String
     },
     createdAt: { type: Date, default: Date.now },
 });

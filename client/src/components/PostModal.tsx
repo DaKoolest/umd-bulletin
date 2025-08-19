@@ -11,9 +11,9 @@ import {
 import Backdrop from "@mui/material/Backdrop";
 import type { LngLat } from "@vis.gl/react-maplibre";
 import ThumbUpIcon from "@mui/icons-material/ThumbUp";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useBulletinApi } from "../bulletin-api";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 export type Post = {
     author?: string;
@@ -25,6 +25,7 @@ export type Post = {
     canDelete: boolean;
     postId: number;
     createdAt: Date;
+    imageUrl?: string;
 };
 
 export type PostModalProps = {
@@ -41,16 +42,41 @@ function PostModal({ open, mode, pos, userPost, handleClose }: PostModalProps) {
 
     const [title, setTitle] = useState("");
     const [body, setBody] = useState("");
+    const [imageFile, setImageFile] = useState<File | null>(null);
+
     const TITLE_MAX = 25;
     const BODY_MAX = 100;
     const [errors, setErrors] = useState<{ title?: string; body?: string }>({});
 
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (validateAll()) {
-            console.log("Submitted:", { title, body, pos });
+    const likesQuery = useQuery({
+        queryKey: ["likes", userPost?.postId],
+        queryFn: async () => {
+            const res = await post("/get-likes", {
+                likedObjId: userPost?.postId,
+            });
+            console.log(res.data);
+            return res.data;
+        },
+        enabled: false,
+        refetchInterval: false,
+    });
 
-            post("/create-post", { title: title, body: body, location: pos })
+    useEffect(() => {
+        if (open && !!userPost?.postId) likesQuery.refetch();
+    }, [open]);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        if (validateAll()) {
+            const formData = new FormData();
+            formData.append("title", title);
+            formData.append("body", body);
+            formData.append("location", JSON.stringify(pos));
+
+            if (imageFile) formData.append("image", imageFile);
+
+            post("/create-post", formData)
                 .then((res) => {
                     const personalPosts: Post[] | undefined =
                         queryClient.getQueryData(["personal_posts"]);
@@ -96,6 +122,20 @@ function PostModal({ open, mode, pos, userPost, handleClose }: PostModalProps) {
         return newErrors.body === undefined;
     };
 
+    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files.length > 0) {
+            setImageFile(e.target.files[0]);
+        } else {
+            setImageFile(null);
+        }
+    };
+
+    const like = (likedObjId: number, liked: boolean) => {
+        post("/like", { likedObjId, liked }).catch((e: Error) =>
+            console.error(e)
+        );
+    };
+
     return (
         <Modal
             open={open}
@@ -115,7 +155,7 @@ function PostModal({ open, mode, pos, userPost, handleClose }: PostModalProps) {
                         top: "50%",
                         left: "50%",
                         transform: "translate(-50%, -50%)",
-                        width: "25%",
+                        width: "40%",
                     }}
                 >
                     {mode === "create" ? (
@@ -153,6 +193,11 @@ function PostModal({ open, mode, pos, userPost, handleClose }: PostModalProps) {
                                 error={!!errors.body}
                                 helperText={errors.body}
                             />
+                            <input
+                                accept="image/*"
+                                type="file"
+                                onChange={handleImageChange}
+                            />
                             <Button type="submit" color="primary">
                                 Create Post
                             </Button>
@@ -175,12 +220,46 @@ function PostModal({ open, mode, pos, userPost, handleClose }: PostModalProps) {
                             <Typography>{userPost?.body}</Typography>
 
                             <Box sx={{ display: "flex", alignItems: "center" }}>
-                                <IconButton>
-                                    <ThumbUpIcon />
-                                </IconButton>
-                                <Typography>{userPost?.likes}</Typography>
-                            </Box>
+                                <IconButton
+                                    onClick={() => {
+                                        if (userPost) {
+                                            const liked =
+                                                !likesQuery?.data?.hasUserLiked;
 
+                                            console.log(liked);
+
+                                            userPost.hasUserLiked = liked;
+                                            like(userPost.postId, liked);
+
+                                            queryClient.setQueryData(
+                                                ["likes", userPost?.postId],
+                                                (prev: any) => {
+                                                    return {
+                                                        likes:
+                                                            prev.likes +
+                                                            (liked ? 1 : -1),
+                                                        hasUserLiked: liked,
+                                                    };
+                                                }
+                                            );
+                                        }
+                                    }}
+                                >
+                                    <ThumbUpIcon
+                                        color={
+                                            likesQuery?.data?.hasUserLiked
+                                                ? "primary"
+                                                : "action"
+                                        }
+                                    />
+                                </IconButton>
+                                <Typography>
+                                    {likesQuery?.data?.likes ?? 0}
+                                </Typography>
+                            </Box>
+                            <img src={userPost?.imageUrl} />
+
+                            <Box></Box>
                             {userPost?.canDelete && (
                                 <Button
                                     onClick={() => {
