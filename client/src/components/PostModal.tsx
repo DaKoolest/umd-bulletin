@@ -1,22 +1,11 @@
-import {
-    Box,
-    Button,
-    Card,
-    Fade,
-    IconButton,
-    Modal,
-    TextField,
-    Typography,
-} from "@mui/material";
+import { Card, Fade, Modal } from "@mui/material";
 import Backdrop from "@mui/material/Backdrop";
 import type { LngLat } from "@vis.gl/react-maplibre";
-import ThumbUpIcon from "@mui/icons-material/ThumbUp";
-import { useEffect, useState } from "react";
-import { useBulletinApi } from "../bulletin-api";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import PostView from "./PostView";
+import PostForm from "./PostForm";
 
 export type Post = {
-    author?: string;
+    author: string;
     title: string;
     body: string;
     likes: number;
@@ -30,116 +19,16 @@ export type Post = {
 
 export type PostModalProps = {
     open: boolean;
-    mode: "create" | "view" | "edit";
-    userPost?: Post;
-    pos?: LngLat;
-    handleClose: () => void;
+    mode: "create" | "view";
+    data: Post | LngLat | null;
+    onClose: () => void;
 };
 
-function PostModal({ open, mode, pos, userPost, handleClose }: PostModalProps) {
-    const { post } = useBulletinApi();
-    const queryClient = useQueryClient();
-
-    const [title, setTitle] = useState("");
-    const [body, setBody] = useState("");
-    const [imageFile, setImageFile] = useState<File | null>(null);
-
-    const TITLE_MAX = 25;
-    const BODY_MAX = 100;
-    const [errors, setErrors] = useState<{ title?: string; body?: string }>({});
-
-    const likesQuery = useQuery({
-        queryKey: ["likes", userPost?.postId],
-        queryFn: async () => {
-            const res = await post("/get-likes", {
-                likedObjId: userPost?.postId,
-            });
-            console.log(res.data);
-            return res.data;
-        },
-        enabled: false,
-        refetchInterval: false,
-    });
-
-    useEffect(() => {
-        if (open && !!userPost?.postId) likesQuery.refetch();
-    }, [open]);
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-
-        if (validateAll()) {
-            const formData = new FormData();
-            formData.append("title", title);
-            formData.append("body", body);
-            formData.append("location", JSON.stringify(pos));
-
-            if (imageFile) formData.append("image", imageFile);
-
-            post("/create-post", formData)
-                .then((res) => {
-                    const personalPosts: Post[] | undefined =
-                        queryClient.getQueryData(["personal_posts"]);
-
-                    queryClient.setQueryData(
-                        ["personal_posts"],
-                        personalPosts
-                            ? [...personalPosts, res.data]
-                            : [res.data]
-                    );
-                })
-                .catch((e: Error) => console.error(e))
-                .finally(handleClose);
-        }
-    };
-
-    const validateAll = () => {
-        const isTitleValid = validateTitle(title);
-        const isBodyValid = validateBody(body);
-        return isTitleValid && isBodyValid;
-    };
-
-    const validateTitle = (title: string): boolean => {
-        const newErrors: { title?: string } = {};
-
-        if (!title) newErrors.title = "Title is required";
-        else if (title.length > TITLE_MAX)
-            newErrors.title = `Title must be at most ${TITLE_MAX} characters`;
-        else newErrors.title = undefined;
-
-        setErrors((prev) => ({ ...prev, ...newErrors }));
-        return newErrors.title === undefined;
-    };
-
-    const validateBody = (body: string): boolean => {
-        const newErrors: { body?: string } = {};
-        if (!body) newErrors.body = "Body is required";
-        else if (body.length > BODY_MAX)
-            newErrors.body = `Body must be at most ${BODY_MAX} characters`;
-        else newErrors.body = undefined;
-
-        setErrors((prev) => ({ ...prev, ...newErrors }));
-        return newErrors.body === undefined;
-    };
-
-    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files.length > 0) {
-            setImageFile(e.target.files[0]);
-        } else {
-            setImageFile(null);
-        }
-    };
-
-    const like = (likedObjId: number, liked: boolean) => {
-        post("/like", { likedObjId, liked }).catch((e: Error) =>
-            console.error(e)
-        );
-    };
-
+function PostModal({ open, mode, data, onClose }: PostModalProps) {
     return (
         <Modal
             open={open}
-            onClose={handleClose}
+            onClose={onClose}
             closeAfterTransition
             slots={{ backdrop: Backdrop }}
             slotProps={{
@@ -156,145 +45,14 @@ function PostModal({ open, mode, pos, userPost, handleClose }: PostModalProps) {
                         left: "50%",
                         transform: "translate(-50%, -50%)",
                         width: "40%",
+                        maxHeight: "80vh",
                     }}
                 >
-                    {mode === "create" ? (
-                        <Box
-                            component="form"
-                            onSubmit={handleSubmit}
-                            sx={{
-                                display: "flex",
-                                flexDirection: "column",
-                                gap: 2,
-                                padding: 2,
-                            }}
-                        >
-                            <TextField
-                                label="Title"
-                                value={title}
-                                onChange={(e) => {
-                                    validateTitle(e.target.value);
-                                    setTitle(e.target.value);
-                                }}
-                                error={!!errors.title}
-                                helperText={errors.title}
-                                required
-                            />
-                            <TextField
-                                label="Body"
-                                value={body}
-                                onChange={(e) => {
-                                    validateBody(e.target.value);
-                                    setBody(e.target.value);
-                                }}
-                                multiline
-                                rows={4}
-                                required
-                                error={!!errors.body}
-                                helperText={errors.body}
-                            />
-                            <input
-                                accept="image/*"
-                                type="file"
-                                onChange={handleImageChange}
-                            />
-                            <Button type="submit" color="primary">
-                                Create Post
-                            </Button>
-                        </Box>
-                    ) : (
-                        <Box
-                            sx={{
-                                display: "flex",
-                                flexDirection: "column",
-                                padding: 2,
-                            }}
-                        >
-                            <Typography variant="h6">
-                                {userPost?.title}
-                            </Typography>
-                            <Typography sx={{ mt: -1 }} variant="caption">
-                                {userPost?.author}
-                            </Typography>
-
-                            <Typography>{userPost?.body}</Typography>
-
-                            <Box sx={{ display: "flex", alignItems: "center" }}>
-                                <IconButton
-                                    onClick={() => {
-                                        if (userPost) {
-                                            const liked =
-                                                !likesQuery?.data?.hasUserLiked;
-
-                                            console.log(liked);
-
-                                            userPost.hasUserLiked = liked;
-                                            like(userPost.postId, liked);
-
-                                            queryClient.setQueryData(
-                                                ["likes", userPost?.postId],
-                                                (prev: any) => {
-                                                    return {
-                                                        likes:
-                                                            prev.likes +
-                                                            (liked ? 1 : -1),
-                                                        hasUserLiked: liked,
-                                                    };
-                                                }
-                                            );
-                                        }
-                                    }}
-                                >
-                                    <ThumbUpIcon
-                                        color={
-                                            likesQuery?.data?.hasUserLiked
-                                                ? "primary"
-                                                : "action"
-                                        }
-                                    />
-                                </IconButton>
-                                <Typography>
-                                    {likesQuery?.data?.likes ?? 0}
-                                </Typography>
-                            </Box>
-                            <img src={userPost?.imageUrl} />
-
-                            <Box></Box>
-                            {userPost?.canDelete && (
-                                <Button
-                                    onClick={() => {
-                                        post("delete-post", {
-                                            postId: userPost?.postId,
-                                        })
-                                            .then(() => {
-                                                const personalPosts:
-                                                    | Post[]
-                                                    | undefined =
-                                                    queryClient.getQueryData([
-                                                        "personal_posts",
-                                                    ]);
-
-                                                queryClient.setQueryData(
-                                                    ["personal_posts"],
-                                                    personalPosts
-                                                        ? personalPosts.filter(
-                                                              (post) =>
-                                                                  post !==
-                                                                  userPost
-                                                          )
-                                                        : []
-                                                );
-                                                handleClose();
-                                            })
-                                            .catch((e: Error) =>
-                                                console.error(e)
-                                            );
-                                    }}
-                                >
-                                    Delete Post
-                                </Button>
-                            )}
-                        </Box>
+                    {mode === "create" && (
+                        <PostForm pos={data as LngLat} onClose={onClose} />
+                    )}
+                    {mode === "view" && data && (
+                        <PostView userPost={data as Post} onClose={onClose} />
                     )}
                 </Card>
             </Fade>

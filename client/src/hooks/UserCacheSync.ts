@@ -7,8 +7,6 @@ export function useAutoClearUserCache() {
     const queryClient = useQueryClient();
 
     useEffect(() => {
-        console.log(isLoaded);
-        console.log(userId);
         if (!userId && isLoaded) {
             queryClient.setQueryData(["personal_posts"], []);
         }

@@ -1,14 +1,8 @@
-import {
-    SignedIn,
-    SignedOut,
-    SignInButton,
-    UserButton,
-} from "@clerk/clerk-react";
+import { SignedIn, SignedOut, SignInButton } from "@clerk/clerk-react";
 import { Box, Button, Tab, Tabs } from "@mui/material";
 import { Outlet, useLocation, useNavigate } from "react-router";
 import { tabRoutes } from "./router/router";
-import "./App.css";
-import { useAutoClearUserCache } from "./hooks/UserCacheSync";
+import { useAutoClearUserCache } from "./hooks/UserCacheSync.ts";
 import LogoutButton from "./components/LogoutButton";
 
 export default function App() {
@@ -71,7 +65,6 @@ export default function App() {
                         }}
                     >
                         <LogoutButton></LogoutButton>
-                        {/* <UserButton /> */}
                     </Box>
                 </SignedIn>
             </Box>

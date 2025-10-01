@@ -1,70 +1,56 @@
-import { Map, Marker, type MapLayerMouseEvent } from "@vis.gl/react-maplibre";
-import { Box, Button, Fab, Snackbar } from "@mui/material";
+import {
+    Map,
+    type LngLat,
+    type MapLayerMouseEvent,
+} from "@vis.gl/react-maplibre";
+import { Box, Fab, Snackbar, Button } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useState, useEffect, useCallback } from "react";
-import PostModal, { type Post, type PostModalProps } from "./PostModal";
+import PostModal, { type Post } from "./PostModal";
 import { useBulletinApi } from "../bulletin-api";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { SignedIn, SignIn, useAuth } from "@clerk/clerk-react";
+import { useQuery } from "@tanstack/react-query";
+import { SignedIn } from "@clerk/clerk-react";
+import { useModal } from "../hooks/useModal";
+import { PostMarkers } from "./PostMarkers";
 
-function Home() {
+export default function Home() {
     const { get } = useBulletinApi();
-    const { userId } = useAuth();
-    const [placingMarker, setPlacingMarker] = useState<boolean>(false);
-    const [postModalProps, setPostModalProps] = useState<PostModalProps>({
-        open: false,
-        mode: "create",
-        handleClose: () => handlePostModalClose(),
-    });
+    const [placingMarker, setPlacingMarker] = useState(false);
 
-    const handlePostModalClose = () => {
-        setPostModalProps((prev) => ({ ...prev, open: false }));
-    };
+    const postModal = useModal<Post | LngLat>();
 
-    const { data } = useQuery({
+    const { data: posts } = useQuery({
         queryKey: ["personal_posts"],
         queryFn: async () => {
-            const res = await get("/get-personal-posts");
+            const res = await get("/posts/get-personal-posts");
             return res.data?.posts ?? [];
         },
         retry: false,
-        enabled: !!userId,
         initialData: [],
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
     });
-
-    const handleMapClick = useCallback(
-        (e: MapLayerMouseEvent) => {
-            if (placingMarker) {
-                setPlacingMarker(false);
-                setPostModalProps({
-                    ...postModalProps,
-                    open: true,
-                    mode: "create",
-                    pos: e.lngLat,
-                });
-            }
-        },
-        [placingMarker]
-    );
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === "Escape" && placingMarker) {
-                setPlacingMarker(false);
-            }
+            if (e.key === "Escape" && placingMarker) setPlacingMarker(false);
         };
-
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
     }, [placingMarker]);
 
+    const handleMapClick = useCallback(
+        (e: MapLayerMouseEvent) => {
+            if (!placingMarker) return;
+            setPlacingMarker(false);
+            postModal.open("create", e.lngLat);
+        },
+        [placingMarker, postModal]
+    );
+
     return (
-        <Box
-            sx={{
-                position: "relative",
-            }}
-        >
+        <Box sx={{ position: "relative" }}>
             <Map
                 initialViewState={{
                     longitude: -76.9425363,
@@ -72,10 +58,7 @@ function Home() {
                     zoom: 10,
                 }}
                 mapStyle="https://tiles.openfreemap.org/styles/liberty"
-                style={{
-                    height: "calc(100vh - 64px)",
-                    width: "100%",
-                }}
+                style={{ height: "calc(100vh - 64px)", width: "100%" }}
                 dragRotate={false}
                 touchPitch={false}
                 touchZoomRotate={false}
@@ -91,21 +74,10 @@ function Home() {
                 ]}
                 onClick={handleMapClick}
             >
-                {data?.map((p: Post, index: number) => (
-                    <Marker
-                        key={index}
-                        longitude={p.pos.lng}
-                        latitude={p.pos.lat}
-                        onClick={() => {
-                            setPostModalProps({
-                                ...postModalProps,
-                                open: true,
-                                mode: "view",
-                                userPost: p,
-                            });
-                        }}
-                    />
-                ))}
+                <PostMarkers
+                    posts={posts}
+                    onMarkerClick={(post) => postModal.open("view", post)}
+                />
             </Map>
 
             <SignedIn>
@@ -117,6 +89,7 @@ function Home() {
                 >
                     <AddIcon />
                 </Fab>
+
                 <Snackbar
                     open={placingMarker}
                     message="Click on the map to place your pin"
@@ -131,10 +104,14 @@ function Home() {
                         </Button>
                     }
                 />
-                <PostModal {...postModalProps} />
+
+                <PostModal
+                    open={postModal.isOpen}
+                    mode={postModal.mode}
+                    data={postModal.data}
+                    onClose={postModal.close}
+                />
             </SignedIn>
         </Box>
     );
 }
-
-export default Home;

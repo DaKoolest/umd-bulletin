@@ -25,6 +25,7 @@ export function useBulletinApi() {
     };
 
     const post = (url: string, data: Object, config = {}) => {
+        console.log(url);
         return apiClient.post(url, data, config);
     };
 

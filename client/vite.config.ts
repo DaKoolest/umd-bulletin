@@ -7,7 +7,7 @@ export default defineConfig({
     server: {
         proxy: {
             "/bulletin": {
-                target: "http://localhost:3001/",
+                target: "http://localhost:3001/", //"https://qk1r14tagk.execute-api.us-east-2.amazonaws.com/prod/",
                 changeOrigin: true,
                 rewrite: (path) => path.replace(/^\/bulletin/, ""),
             },
