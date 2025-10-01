@@ -11,6 +11,14 @@ export default function CommentList({ postId }: CommentsListProps) {
     const { data: comments, isLoading } = useComments(postId);
     const { deleteComment } = useDeleteComment(postId);
 
+    const formatDate = (isoString: string) => {
+        return new Date(isoString).toLocaleString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+        });
+    };
+
     if (isLoading) return <Typography>Loading comments...</Typography>;
 
     if (!comments || comments.length === 0)
@@ -26,14 +34,27 @@ export default function CommentList({ postId }: CommentsListProps) {
                         justifyContent: "space-between",
                         alignItems: "center",
                         border: "1px solid #ddd",
+                        background: "#fcfcfcff",
                         borderRadius: 1,
                         padding: 1,
                     }}
                 >
                     <Box>
-                        <Typography variant="subtitle2">
-                            {c.username}
-                        </Typography>
+                        <Box
+                            sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 1,
+                            }}
+                        >
+                            <Typography variant="subtitle2">
+                                {c.username}
+                            </Typography>
+                            <Typography variant="body2">
+                                {formatDate(c.createdAt)}
+                            </Typography>
+                        </Box>
+
                         <Typography
                             variant="body2"
                             sx={{
