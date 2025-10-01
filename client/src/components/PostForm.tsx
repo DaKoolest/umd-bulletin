@@ -39,6 +39,7 @@ function PostForm({ pos, onClose }: PostFormProps) {
                 display: "flex",
                 flexDirection: "column",
                 gap: 2,
+                marginTop: 4,
                 padding: 2,
             }}
         >

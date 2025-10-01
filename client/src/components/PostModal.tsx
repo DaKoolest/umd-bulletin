@@ -1,5 +1,6 @@
-import { Card, Fade, Modal } from "@mui/material";
+import { Card, IconButton, Fade, Modal } from "@mui/material";
 import Backdrop from "@mui/material/Backdrop";
+import CloseIcon from "@mui/icons-material/Close";
 import type { LngLat } from "@vis.gl/react-maplibre";
 import PostView from "./PostView";
 import PostForm from "./PostForm";
@@ -54,6 +55,19 @@ function PostModal({ open, mode, data, onClose }: PostModalProps) {
                     {mode === "view" && data && (
                         <PostView userPost={data as Post} onClose={onClose} />
                     )}
+                    <IconButton
+                        color="primary"
+                        size="small"
+                        sx={{
+                            position: "absolute",
+                            top: 8,
+                            right: 8,
+                            zIndex: 1,
+                        }}
+                        onClick={onClose}
+                    >
+                        <CloseIcon />
+                    </IconButton>
                 </Card>
             </Fade>
         </Modal>
